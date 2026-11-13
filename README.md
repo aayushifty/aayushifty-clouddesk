@@ -4,6 +4,42 @@
 
 ---
 
+## 0. Cloud Workspace & AI Gateway (start here)
+
+Google Drive is the **only permanent home** of your projects. The laptop holds a project
+only while you work on it. Heavy AI runs in the cloud.
+
+| You do | What happens |
+|---|---|
+| **Open** (dashboard → Cloud Workspace, right-click → *CloudDesk: Open on this laptop*, or `cdesk open <name>`) | Copies the project from `G:\My Drive\Projects` to `D:\CloudDesk\Workspace`, restores its `.env`/keys, installs dependencies in the background (caches on D:), opens VS Code |
+| **Park** (dashboard, right-click → *CloudDesk: Park to Google Drive*, or `cdesk park <name>`) | Uploads changes, mirrors deletions, **verifies every file with SHA-256**, then deletes the laptop copy *including* `node_modules`/`.venv`/build output. If anything fails, nothing local is deleted. |
+| Nothing (7 days idle) | The background service parks the project automatically (`auto_park_days` in `D:\CloudDesk\clouddesk_config.json`, 0 = off) |
+| **Run in cloud** | Opens the project in GitHub Codespaces: cloud CPU/RAM, nothing runs on the laptop |
+
+Secrets never go to the cloud: on park, `.env`, `*.pem`, `*.key`… move to `D:\CloudDesk\Vault\<project>`
+and come back on open. Regenerable folders are never uploaded. Files deleted from a cloud
+project go to Google Drive's Trash (recoverable for 30 days).
+
+**AI Gateway.** Point any agent or tool that speaks the OpenAI API at CloudDesk:
+
+```
+OPENAI_BASE_URL=http://127.0.0.1:8765/v1
+OPENAI_API_KEY=clouddesk          # dummy - the real Gemini key stays in Windows Credential Manager
+model=auto                        # -> ai_gateway.default_model (gemini-2.5-flash)
+```
+
+Requests run on Gemini, so they use 0 MB of laptop RAM instead of 2–4 GB for an Ollama
+model. `local:<model>` forces local Ollama. When the cloud is unreachable, requests fall
+back to `ai_gateway.local_model` on Ollama automatically. Only the dashboard origin and
+local programs can call it: websites can't spend your key. Try it with `cdesk ai "hello"`.
+
+**Setup (once):** `powershell -ExecutionPolicy Bypass -File scripts\install_cloud_workspace.ps1`
+adds the right-click menu (on Windows 11 it's under *Show more options*), the `cdesk`
+command and a *CloudDesk Projects* desktop shortcut. The background service now also
+serves the API, so the gateway works with the dashboard window closed.
+
+---
+
 ## 1. Central Storage Philosophy
 
 ```

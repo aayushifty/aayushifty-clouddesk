@@ -31,12 +31,16 @@ def start_server():
 def main():
     use_browser = "--browser" in sys.argv
 
-    # Start FastAPI daemon thread
-    server_thread = threading.Thread(target=start_server, daemon=True)
-    server_thread.start()
-
-    # Wait briefly for server initialization
-    time.sleep(1.2)
+    # The background service usually serves the API already - reuse it instead of
+    # failing to bind a second server on the same port.
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.5)
+        already_running = s.connect_ex((HOST, PORT)) == 0
+    if not already_running:
+        server_thread = threading.Thread(target=start_server, daemon=True)
+        server_thread.start()
+        time.sleep(1.2)  # wait briefly for server initialization
 
     if not use_browser:
         try:

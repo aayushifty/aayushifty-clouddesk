@@ -13,14 +13,16 @@ import shutil
 import subprocess
 import time
 import webbrowser
-from urllib.parse import urlparse
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
+
+import anyio
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 from core.system_monitor import SystemMonitor
@@ -35,6 +37,8 @@ from core.cache_manager import CacheManager
 from core.ai_asset_manager import AIAssetManager
 from core.automation_engine import AutomationEngine
 from core.ttl_cache import ttl_cache
+from core.cloud_workspace import CloudWorkspace
+from core import ai_gateway
 
 app = FastAPI(
     title="Aayushifty CloudDesk 2.0 API",
@@ -495,6 +499,102 @@ def guard_status():
     data["running"] = age < 300  # guard writes every 60 s
     data["age_seconds"] = round(age)
     return data
+
+
+# ---------------- Cloud Workspace: Google Drive is the home, D: is a cache ----------------
+
+class WorkspaceRequest(BaseModel):
+    name: str
+    install_deps: bool = True
+
+
+class AutoParkRequest(BaseModel):
+    idle_days: Optional[float] = None
+
+
+def _ws_call(fn, *args, **kwargs):
+    try:
+        return fn(*args, **kwargs)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.get("/api/workspace/projects")
+def workspace_projects():
+    """Every project: parked in Google Drive, or open on the laptop."""
+    return _ws_call(CloudWorkspace.list_projects)
+
+
+@app.post("/api/workspace/open")
+def workspace_open(req: WorkspaceRequest):
+    """One click: bring a project from Drive onto D:, restore secrets, install deps in background."""
+    return _ws_call(CloudWorkspace.open, req.name, install_deps=req.install_deps)
+
+
+@app.post("/api/workspace/park")
+def workspace_park(req: WorkspaceRequest):
+    """One click: upload + SHA-256 verify to Drive, then free the laptop copy completely."""
+    return _ws_call(CloudWorkspace.park, req.name)
+
+
+@app.post("/api/workspace/deps")
+def workspace_deps(req: WorkspaceRequest):
+    """(Re)install a working copy's dependencies in the background."""
+    return _ws_call(CloudWorkspace.install_dependencies, req.name)
+
+
+@app.post("/api/workspace/autopark")
+def workspace_autopark(req: AutoParkRequest):
+    days = req.idle_days if req.idle_days is not None else WorkspaceManager.load_config().get("auto_park_days", 7)
+    return _ws_call(CloudWorkspace.auto_park, float(days))
+
+
+@app.post("/api/workspace/run-in-cloud")
+def workspace_run_in_cloud(req: WorkspaceRequest):
+    """Open the project in GitHub Codespaces (cloud CPU/RAM) - needs a GitHub remote."""
+    repo = CloudWorkspace.github_repo(req.name)
+    if not repo:
+        raise HTTPException(status_code=400, detail="This project has no GitHub remote yet - push it to GitHub first.")
+    url = f"https://codespaces.new/{repo}"
+    webbrowser.open(url)
+    return {"success": True, "url": url}
+
+
+# ---------------- AI Gateway: OpenAI-compatible, runs on Gemini (cloud) ----------------
+
+@app.get("/api/ai/status")
+def ai_status(refresh: bool = False):
+    return ai_gateway.status(refresh=refresh)
+
+
+@app.get("/v1/models")
+def ai_models():
+    return ai_gateway.list_models()
+
+
+@app.post("/v1/chat/completions")
+async def ai_chat_completions(request: Request):
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Body must be JSON")
+    try:
+        backend, resp = await anyio.to_thread.run_sync(ai_gateway.chat, body)
+    except ai_gateway.GatewayError as e:
+        return Response(e.body, status_code=e.status, media_type="application/json")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"No AI backend reachable: {e}")
+    headers = {"X-CloudDesk-Backend": backend}
+    media = resp.headers.get("Content-Type", "application/json")
+    if body.get("stream"):
+        return StreamingResponse(ai_gateway.stream_body(resp), media_type=media, headers=headers)
+    with resp:
+        data = resp.read()
+    return Response(data, media_type=media, headers=headers)
 
 
 # ---------------- Static & Dashboard Serving ----------------

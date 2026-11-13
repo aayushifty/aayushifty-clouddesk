@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchCredentials();
 
   fetchGuard();
+  initCloudWorkspace();
 
   // Polling loops - skipped while the window is minimised/hidden, so an idle
   // dashboard costs no CPU, disk or network on the 8 GB laptop.
@@ -772,3 +773,114 @@ window.deleteKey = async (keyCode) => {
   const res = await fetch(`/api/credentials/${keyCode}`, { method: "DELETE" });
   if (res.ok) fetchCredentials();
 };
+
+
+// ---------------- CLOUD WORKSPACE (Drive = home, laptop = cache) ----------------
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function postJSON(url, body) {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+  return data;
+}
+
+function initCloudWorkspace() {
+  document.getElementById("btn-ws-refresh")?.addEventListener("click", fetchWorkspace);
+  document.getElementById("btn-ws-autopark")?.addEventListener("click", async e => {
+    e.target.disabled = true;
+    try {
+      const r = await postJSON("/api/workspace/autopark", {});
+      alert(`Parked: ${r.parked.length}\nSkipped: ${r.skipped.length}`);
+    } catch (err) { alert(err.message); }
+    e.target.disabled = false;
+    fetchWorkspace();
+  });
+  document.getElementById("ws-projects")?.addEventListener("click", async e => {
+    const btn = e.target.closest("button[data-ws-action]");
+    if (!btn) return;
+    const { wsAction, name } = btn.dataset;
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = wsAction === "park" ? "Saving & verifying..." : wsAction === "open" ? "Bringing down..." : "Opening...";
+    try {
+      const r = await postJSON(`/api/workspace/${wsAction}`, { name });
+      if (wsAction === "open" && r.path) fetch("/api/actions/open-vscode", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: r.path }) });
+      if (r.success === false) alert(`${r.error}\n${(r.locked || r.mismatched_files || []).slice(0, 5).join("\n")}`);
+    } catch (err) { alert(err.message); }
+    btn.disabled = false;
+    btn.textContent = label;
+    fetchWorkspace();
+  });
+  document.getElementById("btn-ai-test")?.addEventListener("click", askCloudAI);
+  document.getElementById("ai-test-prompt")?.addEventListener("keydown", e => { if (e.key === "Enter") askCloudAI(); });
+  fetchWorkspace();
+  fetchAIStatus();
+  setInterval(() => { if (!document.hidden && document.getElementById("tab-workspace")?.classList.contains("active")) fetchWorkspace(); }, 10000);
+}
+
+async function fetchWorkspace() {
+  const grid = document.getElementById("ws-projects");
+  if (!grid) return;
+  try {
+    const res = await fetch("/api/workspace/projects");
+    const data = await res.json();
+    if (!res.ok) { grid.innerHTML = `<div class="subtext">${esc(data.detail)}</div>`; return; }
+    const onLaptop = data.filter(p => p.on_laptop).length;
+    document.getElementById("ws-summary").textContent = `${data.length} projects · ${onLaptop} on the laptop · ${data.length - onLaptop} parked in Google Drive`;
+    grid.innerHTML = data.map(p => {
+      const deps = p.deps && p.deps.status ? `<span class="tag">deps: ${esc(p.deps.status)}</span>` : "";
+      const main = p.on_laptop
+        ? `<button class="btn btn-primary btn-xs" data-ws-action="park" data-name="${esc(p.name)}">Park to Drive</button>`
+        : `<button class="btn btn-primary btn-xs" data-ws-action="open" data-name="${esc(p.name)}">Open on laptop</button>`;
+      const cloud = p.github ? `<button class="btn btn-secondary btn-xs" data-ws-action="run-in-cloud" data-name="${esc(p.name)}">Run in cloud</button>` : "";
+      return `
+        <div class="project-card">
+          <div>
+            <div class="project-name">${esc(p.name)}</div>
+            <div class="project-tags">
+              <span class="badge ${p.on_laptop ? "orange" : "green"}">${p.on_laptop ? "On laptop" : "Parked in Drive · 0 MB local"}</span>
+              ${deps}
+              ${p.github ? `<span class="tag">${esc(p.github)}</span>` : ""}
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:8px;">${main}${cloud}</div>
+        </div>`;
+    }).join("") || `<div class="subtext">No projects yet. Put project folders in G:\\My Drive\\Projects or D:\\CloudDesk\\Workspace.</div>`;
+  } catch (err) {
+    console.error("Workspace error:", err);
+  }
+}
+
+async function fetchAIStatus() {
+  try {
+    const s = await (await fetch("/api/ai/status")).json();
+    const badge = document.getElementById("ai-badge");
+    const ok = s.gemini_key_configured && s.gemini_reachable;
+    if (badge) { badge.textContent = ok ? "Cloud ready" : (s.ollama_running ? "Local only" : "Offline"); badge.className = `badge ${ok ? "green" : "orange"}`; }
+    document.getElementById("ai-summary").textContent =
+      `Default: ${s.default_model} · Gemini key ${s.gemini_key_configured ? "set" : "missing"} · Ollama fallback ${s.local_fallback ? (s.ollama_running ? "ready" : "off (Ollama not running)") : "disabled"}`;
+  } catch (err) {
+    console.error("AI status error:", err);
+  }
+}
+
+async function askCloudAI() {
+  const input = document.getElementById("ai-test-prompt");
+  const out = document.getElementById("ai-test-output");
+  if (!input?.value.trim()) return;
+  out.textContent = "Thinking in the cloud...";
+  try {
+    const res = await fetch("/v1/chat/completions", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "auto", messages: [{ role: "user", content: input.value }] })
+    });
+    const data = await res.json();
+    const backend = res.headers.get("X-CloudDesk-Backend") || "?";
+    out.textContent = res.ok
+      ? `${data.choices?.[0]?.message?.content ?? "(empty)"}\n\n— answered by ${backend} (${data.model || ""})`
+      : `Error: ${JSON.stringify(data.error || data.detail || data)}`;
+  } catch (err) {
+    out.textContent = `Error: ${err.message}`;
+  }
+}

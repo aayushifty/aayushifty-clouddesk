@@ -47,7 +47,13 @@ DEFAULT_CONFIG = {
     },
     "auto_sync_assets": True,
     "max_upload_retries": 3,
-    "strict_security_exclusions": True
+    "strict_security_exclusions": True,
+    "auto_park_days": 7,
+    "ai_gateway": {
+        "default_model": "gemini-2.5-flash",
+        "local_fallback": True,
+        "local_model": "qwen3:4b-instruct"
+    }
 }
 
 
