@@ -178,6 +178,21 @@
               <button class="btn btn-xs" id="btn-fix-drive">Action</button>
             </div>
           </div>
+
+          <!-- CloudDesk Guard (RAM/disk watchdog from clouddesk-toolkit) -->
+          <div class="card metric-card" id="card-guard">
+            <div class="card-header">
+              <span class="card-label">CloudDesk Guard</span>
+              <span class="badge" id="guard-badge">Checking...</span>
+            </div>
+            <div class="metric-main">
+              <h2 id="guard-ram">--</h2>
+              <span class="unit" id="guard-disk">C: free --</span>
+            </div>
+            <div class="card-footer">
+              <span id="guard-last-action" class="subtext">No actions yet</span>
+            </div>
+          </div>
         </div>
 
         <!-- Disks Breakdown & Local Workspace Layout -->

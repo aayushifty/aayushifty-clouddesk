@@ -142,36 +142,41 @@ class StorageOptimizer:
         }
 
     @classmethod
-    def clean_safe_temp_files(cls) -> Dict[str, Any]:
+    def clean_safe_temp_files(cls, max_age_hours: float = 24) -> Dict[str, Any]:
         """
-        Cleans safe temporary files older than 24 hours.
-        NEVER throws on locked files (active applications).
+        Deletes individual temp FILES older than max_age_hours, then prunes empty folders.
+
+        It never deletes a whole folder by its own date: a folder created days ago can
+        still belong to a running app (PyInstaller _MEI dirs, IDE/Electron extraction
+        dirs), and removing its files is what makes those apps crash. Locked files are
+        skipped, symlinks are never followed.
         """
         deleted_count = 0
         reclaimed_bytes = 0
-        cutoff = time.time() - (24 * 3600)  # 24 hours old
+        cutoff = time.time() - max_age_hours * 3600
 
         for temp_dir in cls.SAFE_TEMP_DIRS:
             if not temp_dir.exists():
                 continue
-            for entry in os.scandir(temp_dir):
-                try:
-                    p = Path(entry.path)
-                    stat = entry.stat(follow_symlinks=False)
-                    if stat.st_mtime < cutoff:
-                        if entry.is_file(follow_symlinks=False):
-                            size = stat.st_size
-                            p.unlink(missing_ok=True)
-                            deleted_count += 1
-                            reclaimed_bytes += size
-                        elif entry.is_dir(follow_symlinks=False):
-                            dir_size = cls.get_directory_size(p)
-                            shutil.rmtree(p, ignore_errors=True)
-                            deleted_count += 1
-                            reclaimed_bytes += dir_size
-                except (PermissionError, FileNotFoundError, OSError):
-                    # File locked by Windows or in-use by running app
-                    continue
+            for root, dirs, files in os.walk(temp_dir, followlinks=False):
+                for name in files:
+                    fp = os.path.join(root, name)
+                    try:
+                        st = os.lstat(fp)
+                        if os.path.islink(fp) or st.st_mtime >= cutoff:
+                            continue
+                        os.unlink(fp)
+                        deleted_count += 1
+                        reclaimed_bytes += st.st_size
+                    except OSError:
+                        continue  # locked by a running app
+            # prune now-empty folders, deepest first; never the temp root itself
+            for root, dirs, files in sorted(os.walk(temp_dir), key=lambda t: len(t[0]), reverse=True):
+                if Path(root) != temp_dir:
+                    try:
+                        os.rmdir(root)
+                    except OSError:
+                        pass
 
         return {
             "success": True,
@@ -179,4 +184,3 @@ class StorageOptimizer:
             "reclaimed_mb": round(reclaimed_bytes / (1024 ** 2), 2),
             "reclaimed_gb": round(reclaimed_bytes / (1024 ** 3), 2)
         }
-

@@ -19,6 +19,13 @@ from core.cloud_drive import CloudDriveManager
 PINNED_CONFIG_FILE = Path("D:/CloudDesk/pinned_assets.json")
 
 
+def _safe_name(name: str) -> str:
+    """Model/asset names must be a plain file name - no folders, no '..'."""
+    if not name or name in (".", "..") or any(c in name for c in '/\\:') or Path(name).name != name:
+        raise ValueError(f"Invalid asset name: {name!r}")
+    return name
+
+
 class CacheManager:
     """Monitors cache thresholds, protects active dependencies, and safely evicts cold assets."""
 
@@ -36,7 +43,7 @@ class CacheManager:
     def pin_asset(cls, asset_name: str) -> None:
         """Protects an asset from eviction."""
         pinned = cls.load_pinned_assets()
-        pinned.add(asset_name)
+        pinned.add(_safe_name(asset_name))
         PINNED_CONFIG_FILE.write_text(json.dumps(list(pinned), indent=2), encoding="utf-8")
 
     @classmethod
@@ -100,6 +107,7 @@ class CacheManager:
         SAFETY RULE: If the model is not already stored in Google Drive (G:\\AI_Models),
         it uploads it to Google Drive FIRST before removing the local copy!
         """
+        model_name = _safe_name(model_name)
         model_path = LOCAL_DIRS["model_cache"] / model_name
         if not model_path.exists():
             raise FileNotFoundError(f"Model file not found in cache: {model_name}")
@@ -143,6 +151,7 @@ class CacheManager:
     @classmethod
     def pull_model_from_cloud(cls, model_name: str) -> Dict[str, Any]:
         """Fetches a cold model from Google Drive AI_Models into D:\\CloudDesk\\ModelCache."""
+        model_name = _safe_name(model_name)
         my_drive = CloudDriveManager.get_my_drive_path()
         if not my_drive or not my_drive.exists():
             raise FileNotFoundError("Google Drive is not mounted.")

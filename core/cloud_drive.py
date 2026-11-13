@@ -11,6 +11,8 @@ import psutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.ttl_cache import ttl_cache
+
 REQUIRED_CLOUD_FOLDERS = [
     "Projects",
     "AI_Models",
@@ -40,6 +42,7 @@ class CloudDriveManager:
     """Manages Google Drive for Desktop integration, folder structure, and storage analytics."""
 
     @staticmethod
+    @ttl_cache(3600)  # recursive glob of Program Files - doesn't change minute to minute
     def is_drive_installed() -> bool:
         """Checks if Google Drive for Desktop executable exists on the system."""
         common_paths = [
@@ -170,6 +173,7 @@ class CloudDriveManager:
         return True, "Cloud workspace structure initialized successfully.", created
 
     @classmethod
+    @ttl_cache(600)  # walks every file in G:\My Drive over the network - at most every 10 min
     def get_cloud_storage_analytics(cls) -> Dict[str, Any]:
         """
         Retrieves real-time actual quota and calculates category consumption

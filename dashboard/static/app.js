@@ -18,11 +18,43 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchBackups();
   fetchCredentials();
 
-  // Polling loops
-  setInterval(fetchTelemetry, 3000);
-  setInterval(fetchDriveStatus, 6000);
-  setInterval(fetchCloudAnalytics, 15000);
+  fetchGuard();
+
+  // Polling loops - skipped while the window is minimised/hidden, so an idle
+  // dashboard costs no CPU, disk or network on the 8 GB laptop.
+  const whenVisible = fn => () => { if (!document.hidden) fn(); };
+  setInterval(whenVisible(fetchTelemetry), 3000);
+  setInterval(whenVisible(fetchDriveStatus), 6000);
+  setInterval(whenVisible(fetchCloudAnalytics), 60000); // server caches the scan anyway
+  setInterval(whenVisible(fetchGuard), 30000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) { fetchTelemetry(); fetchDriveStatus(); fetchGuard(); }
+  });
 });
+
+// ---------------- CLOUDDESK GUARD ----------------
+async function fetchGuard() {
+  try {
+    const res = await fetch("/api/guard");
+    if (!res.ok) return;
+    const g = await res.json();
+    const badge = document.getElementById("guard-badge");
+    const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    if (!g.running) {
+      if (badge) { badge.textContent = "Offline"; badge.className = "badge orange"; }
+      set("guard-ram", "--");
+      set("guard-disk", g.detail || "Not running");
+      return;
+    }
+    const alert = g.ram_alert || g.disk_alert;
+    if (badge) { badge.textContent = alert ? "Acting" : "Watching"; badge.className = `badge ${alert ? "orange" : "green"}`; }
+    set("guard-ram", `${g.ram_percent}% RAM`);
+    set("guard-disk", `C: free ${g.disk_free_gb} GB`);
+    set("guard-last-action", (g.actions && g.actions.length) ? `${g.ts}: ${g.actions.join("; ")}` : `Last check ${g.ts}`);
+  } catch (err) {
+    console.error("Guard error:", err);
+  }
+}
 
 // Tab Navigation
 function initTabs() {
@@ -79,7 +111,7 @@ function initQuickActions() {
     fetchDriveStatus();
   });
 
-  document.getElementById("btn-refresh-cloud-analytics")?.addEventListener("click", fetchCloudAnalytics);
+  document.getElementById("btn-refresh-cloud-analytics")?.addEventListener("click", () => fetchCloudAnalytics(true));
 
   document.getElementById("btn-generate-colab")?.addEventListener("click", async () => {
     const res = await fetch("/api/colab/generate", { method: "POST" });
@@ -252,9 +284,9 @@ async function fetchDriveStatus() {
 }
 
 // ---------------- CLOUD ANALYTICS & CATEGORIES ----------------
-async function fetchCloudAnalytics() {
+async function fetchCloudAnalytics(refresh = false) {
   try {
-    const res = await fetch("/api/cloud/analytics");
+    const res = await fetch(`/api/cloud/analytics${refresh === true ? "?refresh=true" : ""}`);
     if (!res.ok) return;
     const data = await res.json();
 

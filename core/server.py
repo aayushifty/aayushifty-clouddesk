@@ -6,12 +6,18 @@ differential asset synchronization, safe cache eviction, and project lifecycle m
 """
 from __future__ import annotations
 
+import json
 import os
+import re
+import shutil
 import subprocess
+import time
 import webbrowser
+from urllib.parse import urlparse
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -28,6 +34,7 @@ from core.project_lifecycle import ProjectLifecycleManager
 from core.cache_manager import CacheManager
 from core.ai_asset_manager import AIAssetManager
 from core.automation_engine import AutomationEngine
+from core.ttl_cache import ttl_cache
 
 app = FastAPI(
     title="Aayushifty CloudDesk 2.0 API",
@@ -43,6 +50,28 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Binding to 127.0.0.1 is not enough on its own: any website you visit can still
+# send requests to localhost. Two guards close that:
+#  1. DNS rebinding - a site whose domain resolves to 127.0.0.1 sends its own Host
+#     header, so only accept Host = localhost / 127.0.0.1.
+#  2. Cross-site requests - browsers always attach an Origin header to cross-site
+#     POST/DELETE. Reject state-changing requests from any origin but the dashboard.
+#     (Simple POSTs such as /api/storage/purge-c-ollama?confirmed=true need no CORS
+#     preflight, so CORS alone did not stop them.)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+
+ALLOWED_ORIGINS = {"http://127.0.0.1:8765", "http://localhost:8765"}
+
+
+@app.middleware("http")
+async def block_cross_site_writes(request: Request, call_next):
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        origin = request.headers.get("origin")
+        site = request.headers.get("sec-fetch-site")
+        if (origin and origin not in ALLOWED_ORIGINS) or site == "cross-site":
+            return JSONResponse({"detail": "Cross-site request blocked"}, status_code=403)
+    return await call_next(request)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "dashboard" / "static"
@@ -118,13 +147,14 @@ def init_drive_folders():
 # ---------------- Cloud Storage Analytics (Requirement 4) ----------------
 
 @app.get("/api/cloud/analytics")
-def get_cloud_analytics():
+def get_cloud_analytics(refresh: bool = False):
     """
     Returns actual Google Drive quota and storage consumption across
     Projects, Datasets, AI_Models, Backups, Archives, and local cache.
     """
-    cloud_analytics = CloudDriveManager.get_cloud_storage_analytics()
-    workspace_metrics = WorkspaceManager.get_directory_metrics()
+    # Both scans are cached (10 / 5 min); the dashboard's "refresh" button forces a rescan.
+    cloud_analytics = CloudDriveManager.get_cloud_storage_analytics(refresh=refresh)
+    workspace_metrics = WorkspaceManager.get_directory_metrics(refresh=refresh)
     return {
         "cloud": cloud_analytics,
         "local_cache": workspace_metrics
@@ -292,26 +322,47 @@ def action_open_workspace():
     return {"success": True, "target": str(LOCAL_DIRS["workspace"])}
 
 
+_SHELL_META = re.compile(r'[&|<>^%"\r\n]')
+
+
+def _existing_path(raw: str) -> Path:
+    p = Path(raw).resolve()
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="Path does not exist")
+    return p
+
+
 @app.post("/api/actions/open-vscode")
 def action_open_vscode(req: ActionOpenPathRequest):
     """Opens a specified project folder in VS Code."""
-    if not Path(req.path).exists():
-        raise HTTPException(status_code=404, detail="Path does not exist")
-    subprocess.Popen(["code", req.path], shell=True)
-    return {"success": True, "opened": req.path}
+    p = _existing_path(req.path)
+    # `code` is a .cmd script, so cmd.exe parses the arguments: refuse shell metacharacters
+    # instead of the old shell=True, which turned a crafted folder name into a command.
+    if _SHELL_META.search(str(p)):
+        raise HTTPException(status_code=400, detail="Path contains characters that are unsafe to pass to VS Code")
+    code = shutil.which("code")
+    if not code:
+        raise HTTPException(status_code=404, detail="VS Code ('code') is not on PATH")
+    subprocess.Popen([code, str(p)])
+    return {"success": True, "opened": str(p)}
 
 
 @app.post("/api/actions/open-explorer")
 def action_open_explorer(req: ActionOpenPathRequest):
     """Opens a folder in Windows File Explorer."""
-    p = Path(req.path).resolve()
+    p = _existing_path(req.path)
     subprocess.Popen(["explorer.exe", str(p)])
     return {"success": True, "opened": str(p)}
 
 
 @app.post("/api/actions/open-url")
 def action_open_url(req: ActionOpenPathRequest):
-    """Opens a URL in the default browser."""
+    """Opens a web URL in the default browser (http/https only)."""
+    # On Windows webbrowser.open() falls back to os.startfile(), which would happily
+    # run C:\\...\\anything.exe - only real web links are allowed.
+    u = urlparse(req.path)
+    if u.scheme not in ("http", "https") or not u.netloc:
+        raise HTTPException(status_code=400, detail="Only http(s) URLs can be opened")
     webbrowser.open(req.path)
     return {"success": True, "url": req.path}
 
@@ -398,6 +449,52 @@ def purge_c_ollama(confirmed: bool = False):
         "reclaimed_gb": round(c_size / (1024 ** 3), 2),
         "message": f"Successfully purged original C:\\.ollama\\models. Reclaimed {round(c_size / (1024 ** 3), 2)} GB on C: drive!"
     }
+
+
+# ---------------- Endpoints the dashboard already calls ----------------
+
+@ttl_cache(300)
+def _projects_overview() -> Dict[str, Any]:
+    return {
+        "local_projects": CloudDevManager.discover_local_projects(),
+        "github_repositories": CloudDevManager.get_user_repositories(),
+    }
+
+
+@app.get("/api/projects")
+def list_projects(refresh: bool = False):
+    """Local projects + GitHub repositories (Active Workspaces tab). Cached 5 min."""
+    return _projects_overview(refresh=refresh)
+
+
+@app.post("/api/colab/generate")
+def generate_colab_notebook():
+    """Writes the Colab GPU accelerator notebook into Google Drive (or the project's templates/)."""
+    my_drive = CloudDriveManager.get_my_drive_path()
+    target_dir = (my_drive / "Colab Notebooks") if my_drive else (BASE_DIR / "templates")
+    target_dir.mkdir(parents=True, exist_ok=True)
+    out = CloudDevManager.generate_colab_template(target_dir / "Aayushifty_CloudDesk_ML_Accelerator.ipynb")
+    return {"success": True, "path": str(out)}
+
+
+# ---------------- CloudDesk Guard (clouddesk-toolkit watchdog) ----------------
+
+GUARD_STATUS_FILE = Path(os.environ.get("CLOUDDESK_GUARD_STATUS", "D:/CloudDesk/guard_status.json"))
+
+
+@app.get("/api/guard")
+def guard_status():
+    """Latest status written by CloudDesk Guard (RAM/disk watchdog from clouddesk-toolkit)."""
+    if not GUARD_STATUS_FILE.exists():
+        return {"running": False, "detail": "CloudDesk Guard is not installed or hasn't run yet."}
+    try:
+        data = json.loads(GUARD_STATUS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return {"running": False, "detail": f"Unreadable guard status: {e}"}
+    age = max(0.0, time.time() - GUARD_STATUS_FILE.stat().st_mtime)
+    data["running"] = age < 300  # guard writes every 60 s
+    data["age_seconds"] = round(age)
+    return data
 
 
 # ---------------- Static & Dashboard Serving ----------------

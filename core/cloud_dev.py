@@ -93,7 +93,8 @@ class CloudDevManager:
             Path("C:/Users/joshi/HandChord"),
             Path("C:/Users/joshi/offlinepay"),
             Path("C:/Users/joshi/OpenJarvis"),
-            Path("D:/Projects")
+            Path("D:/Projects"),
+            Path("D:/CloudDesk/Workspace"),
         ]
 
         projects = []

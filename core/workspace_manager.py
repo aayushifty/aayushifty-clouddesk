@@ -16,6 +16,8 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from core.ttl_cache import ttl_cache
+
 LOCAL_DIRS = {
     "workspace": Path("D:/CloudDesk/Workspace"),
     "dependencies": Path("D:/CloudDesk/Dependencies"),
@@ -86,6 +88,7 @@ class WorkspaceManager:
         return {"success": True, "directories": created, "config": str(CONFIG_FILE)}
 
     @classmethod
+    @ttl_cache(300)  # Dependencies/ holds npm/pip caches: hundreds of thousands of files
     def get_directory_metrics(cls) -> Dict[str, Any]:
         """Calculates size and file counts across all local CloudDesk directories."""
         results = {}

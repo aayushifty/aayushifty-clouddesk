@@ -161,7 +161,9 @@ class ProjectLifecycleManager:
                     cwd=str(local_path), capture_output=True, text=True
                 )
                 if res.returncode == 0:
-                    gh_url = f"https://github.com/aayushbhatta230-ux/{clean_name}"
+                    # use the URL gh printed - the account is whoever `gh` is logged in as
+                    urls = [w for w in (res.stdout + res.stderr).split() if w.startswith("https://github.com/")]
+                    gh_url = urls[0].rstrip(".") if urls else None
             except Exception:
                 pass
 
@@ -292,7 +294,10 @@ class ProjectLifecycleManager:
 
                 # Check if destination already has identical size and mtime to avoid unnecessary uploads
                 if dest_path.exists():
-                    if dest_path.stat().st_size == src_path.stat().st_size:
+                    s_st, d_st = src_path.stat(), dest_path.stat()
+                    # copy2 preserves mtime, so equal size AND mtime means unchanged.
+                    # (Size alone missed edits that kept the same length.)
+                    if s_st.st_size == d_st.st_size and abs(s_st.st_mtime - d_st.st_mtime) < 2:
                         continue
 
                 # Copy to staging first (atomic write)
