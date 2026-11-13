@@ -36,9 +36,15 @@ def start_api_server() -> None:
     """Serve the API headless unless the dashboard window already does."""
     if port_in_use():
         return
+    import os
     import uvicorn
     from core.server import app
 
+    # pythonw has no console: uvicorn's log setup calls sys.stdout.isatty() and dies
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
     threading.Thread(
         target=lambda: uvicorn.run(app, host=HOST, port=PORT, log_level="warning"),
         name="clouddesk-api", daemon=True,

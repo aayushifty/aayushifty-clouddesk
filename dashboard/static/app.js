@@ -726,18 +726,23 @@ function initForms() {
 
     if (!secretVal) return;
 
-    const res = await fetch("/api/credentials/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key_name: keyName, secret_value: secretVal })
-    });
+    try {
+      const res = await fetch("/api/credentials/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key_name: keyName, secret_value: secretVal })
+      });
 
-    if (res.ok) {
-      alert(`${keyName} saved securely to Windows Credential Manager!`);
-      document.getElementById("cred-secret-val").value = "";
-      fetchCredentials();
-    } else {
-      alert("Failed saving credential.");
+      if (res.ok) {
+        alert(`${keyName} saved securely to Windows Credential Manager!`);
+        document.getElementById("cred-secret-val").value = "";
+        fetchCredentials();
+      } else {
+        const errData = await res.json().catch(() => null);
+        alert(`Failed saving credential: ${errData?.detail || res.statusText || "Unknown error"}`);
+      }
+    } catch (err) {
+      alert(`Network error saving credential: ${err.message}`);
     }
   });
 }

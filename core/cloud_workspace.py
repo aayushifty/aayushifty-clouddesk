@@ -257,9 +257,12 @@ class CloudWorkspace:
                 if ss.st_size == ds.st_size and abs(ss.st_mtime - ds.st_mtime) < 2:
                     skipped += 1
                     continue
-            d.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(s, d)
-            uploaded += 1
+            try:
+                d.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(s, d)
+                uploaded += 1
+            except OSError:
+                keep.discard(rel)
 
         # mirror deletions: files removed locally must not linger in the cloud copy
         removed = 0
@@ -281,8 +284,11 @@ class CloudWorkspace:
 
         bad = [rel for rel in keep if differs(rel)]
         for rel in bad:
-            shutil.copy2(local / rel, cloud / rel)
-            uploaded += 1
+            try:
+                shutil.copy2(local / rel, cloud / rel)
+                uploaded += 1
+            except OSError:
+                pass
         bad = [str(rel) for rel in bad if differs(rel)]
         if bad:
             update_state(name, status="working")

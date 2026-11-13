@@ -79,6 +79,8 @@ def route(model: Optional[str]) -> Tuple[str, str]:
     m = (model or "").strip()
     if m.startswith("local:"):
         return "local", m[len("local:"):] or cfg["local_model"]
+    if m in ("gemini-2.5-flash", "models/gemini-2.5-flash", "gemini-2.5-flash-lite", "models/gemini-2.5-flash-lite"):
+        m = cfg["default_model"]
     if m in ("", "auto", "cloud", "default") or not m.startswith(("gemini", "models/gemini", "gemma")):
         # unknown names (e.g. "gpt-4o" hard-coded in an agent) go to the default cloud model
         return "gemini", cfg["default_model"]
