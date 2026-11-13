@@ -1,0 +1,35 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Virtual Environments
+.env
+.env.*
+.venv/
+env/
+venv/
+ENV/
+
+# Secrets & Private Keys
+*.key
+*.pem
+credentials.json
+token.json
+client_secrets.json
+id_rsa
+id_rsa.pub
+
+# IDEs & System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.tmp

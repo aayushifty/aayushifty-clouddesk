@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aayushifty CloudDesk 2.0 — Cloud-First Development Environment</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z'/></svg>">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+          </svg>
+        </div>
+        <div>
+          <h2>Aayushifty</h2>
+          <span class="subtext">CloudDesk 2.0</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="tab-overview">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
+          Overview & Health
+        </button>
+        <button class="nav-item" data-tab="tab-cloud-first">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          Cloud Storage & Lifecycle
+        </button>
+        <button class="nav-item" data-tab="tab-drive">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          Google Drive (G:)
+        </button>
+        <button class="nav-item" data-tab="tab-projects">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Active Workspaces
+        </button>
+        <button class="nav-item" data-tab="tab-cache">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          Cache & Model Manager
+        </button>
+        <button class="nav-item" data-tab="tab-cloud">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Cloud Compute (Colab)
+        </button>
+        <button class="nav-item" data-tab="tab-backups">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Backups & Archives
+        </button>
+        <button class="nav-item" data-tab="tab-vault">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Security Vault
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="hybrid-badge">
+          <span class="status-dot green"></span>
+          <span>Google Drive = Primary Store</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Quick Actions Bar -->
+      <header class="top-bar">
+        <div class="quick-actions">
+          <button class="btn btn-primary" id="btn-quick-workspace">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+            Workspace (D:)
+          </button>
+          <button class="btn btn-secondary" id="btn-quick-drive">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+            Drive (G:)
+          </button>
+          <button class="btn btn-secondary" id="btn-quick-vscode">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M23.15 2.587L18.21.21a1.494 1.494 0 0 0-1.705.29l-9.46 8.63-4.12-3.128a.999.999 0 0 0-1.276.057L.327 7.27a.997.997 0 0 0 .005 1.455l3.545 3.272-3.545 3.273a.999.999 0 0 0-.005 1.455l1.322 1.212a.998.998 0 0 0 1.276.057l4.12-3.128 9.46 8.63a1.492 1.492 0 0 0 1.704.29l4.94-2.377A1.5 1.5 0 0 0 24 20.06V3.939a1.5 1.5 0 0 0-.85-1.352z"/></svg>
+            VS Code
+          </button>
+          <button class="btn btn-secondary" id="btn-quick-colab">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+            Colab
+          </button>
+        </div>
+
+        <div class="telemetry-pill">
+          <span class="pulse-ring"></span>
+          <span id="live-indicator">CLOUDDESK 2.0 LIVE</span>
+        </div>
+      </header>
+
+      <!-- TAB 1: Overview & Health -->
+      <section id="tab-overview" class="tab-panel active">
+        <div class="section-header">
+          <h1>System Telemetry & Hardware Health</h1>
+          <p class="subtitle">Hardware Guard: Managing 8 GB RAM laptop with local NVMe SSD execution and Google Drive primary storage.</p>
+        </div>
+
+        <div class="cards-grid">
+          <!-- RAM Card -->
+          <div class="card metric-card" id="card-ram">
+            <div class="card-header">
+              <span class="card-label">Physical RAM (8 GB)</span>
+              <span class="badge" id="ram-badge">Monitoring</span>
+            </div>
+            <div class="metric-main">
+              <h2 id="ram-used">0.0</h2>
+              <span class="unit">/ 7.65 GB</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar" id="ram-progress" style="width: 0%"></div>
+            </div>
+            <div class="card-footer">
+              <span id="ram-free">Free: 0.0 GB</span>
+              <span id="ram-percent">0%</span>
+            </div>
+          </div>
+
+          <!-- CPU Card -->
+          <div class="card metric-card" id="card-cpu">
+            <div class="card-header">
+              <span class="card-label">CPU (i5-13420H)</span>
+              <span class="badge green" id="cpu-badge">Healthy</span>
+            </div>
+            <div class="metric-main">
+              <h2 id="cpu-percent">0%</h2>
+              <span class="unit">Load</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar bg-blue" id="cpu-progress" style="width: 0%"></div>
+            </div>
+            <div class="card-footer">
+              <span id="cpu-cores">8 Cores / 12 Threads</span>
+              <span id="cpu-freq">2.1 GHz</span>
+            </div>
+          </div>
+
+          <!-- GPU Card -->
+          <div class="card metric-card" id="card-gpu">
+            <div class="card-header">
+              <span class="card-label">GPU: RTX 3050 6GB</span>
+              <span class="badge purple" id="gpu-badge">6 GB VRAM</span>
+            </div>
+            <div class="metric-main">
+              <h2 id="gpu-vram-used">0 MB</h2>
+              <span class="unit">/ 6144 MB</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar bg-purple" id="gpu-progress" style="width: 0%"></div>
+            </div>
+            <div class="card-footer">
+              <span id="gpu-temp">Temp: 0°C</span>
+              <span id="gpu-util">Load: 0%</span>
+            </div>
+          </div>
+
+          <!-- Google Drive Status Card -->
+          <div class="card metric-card" id="card-gdrive">
+            <div class="card-header">
+              <span class="card-label">Google Drive Storage</span>
+              <span class="badge" id="gdrive-badge">Detecting...</span>
+            </div>
+            <div class="metric-main">
+              <h2 id="gdrive-mount">G:\</h2>
+              <span class="unit" id="gdrive-mode">Stream Files Mode</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar bg-green" id="gdrive-progress" style="width: 100%"></div>
+            </div>
+            <div class="card-footer">
+              <span id="gdrive-folders-status">Folders: Pending</span>
+              <button class="btn btn-xs" id="btn-fix-drive">Action</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Disks Breakdown & Local Workspace Layout -->
+        <div class="two-column-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3>Disk Partitions & Storage Layout</h3>
+              <span class="subtext">C: OS (Cramped) | D: Active Workspace (146 GB) | E: Staging/Recovery (102 GB)</span>
+            </div>
+            <div id="disk-drives-list" class="drives-list"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Top Memory Consumers (RAM Watchdog)</h3>
+              <span class="subtext">Cached inspection guarding 8 GB threshold</span>
+            </div>
+            <div id="processes-list" class="procs-table"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: Cloud Storage & Lifecycle (Cloud-First Transformation) -->
+      <section id="tab-cloud-first" class="tab-panel">
+        <div class="section-header">
+          <h1>Cloud-First Storage & Project Lifecycle</h1>
+          <p class="subtitle">Google Drive holds all project archives, datasets, and models. Local SSD (D: & E:) acts as high-speed workspace cache.</p>
+        </div>
+
+        <!-- Cloud Storage Metrics Overview -->
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <div>
+              <h3>Google Drive Cloud Storage Consumption</h3>
+              <span class="subtext" id="cloud-quota-subtext">Retrieving dynamic storage quota...</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-cloud-analytics">Refresh Quota</button>
+          </div>
+          <div class="cards-grid" id="cloud-categories-grid" style="margin-top: 10px;">
+            <!-- Categories dynamically rendered: Projects, AI_Models, Datasets, Backups, Archives, Videos, PCB -->
+          </div>
+        </div>
+
+        <!-- Local vs Cloud Project Lifecycle Manager -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Intelligent Project Manager</h3>
+              <span class="subtext">D:\CloudDesk\Workspace &lt;—&gt; G:\My Drive\Projects</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="project-search-input" class="input-field" placeholder="Search projects..." style="padding: 5px 10px; width: 180px;">
+              <button class="btn btn-primary btn-sm" id="btn-modal-new-project">+ New Project</button>
+            </div>
+          </div>
+
+          <!-- New Project Creation Form (Collapsible) -->
+          <div id="new-project-box" style="display: none; background: rgba(0,0,0,0.3); padding: 14px; border-radius: 8px; margin: 10px 0 16px;">
+            <h4 style="margin-bottom: 10px;">Create Cloud-First Project</h4>
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label>Project Name:</label>
+                <input type="text" id="new-proj-name" class="input-field" placeholder="e.g. quantum-agent or robotics-esp32">
+              </div>
+              <div class="form-group">
+                <label>Git Init:</label>
+                <select id="new-proj-git" class="input-field">
+                  <option value="true">Yes (Initialize Git)</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <button class="btn btn-primary btn-sm" id="btn-submit-create-project">Create Local & Cloud Folders</button>
+              <button class="btn btn-secondary btn-sm" id="btn-cancel-new-project">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Mapped Projects Table -->
+          <div id="mapped-projects-container" style="margin-top: 12px;">
+            <p class="empty-state">Loading mapped projects...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: Google Drive (G:) -->
+      <section id="tab-drive" class="tab-panel">
+        <div class="section-header">
+          <h1>Google Drive Integration (Stream Files Mode)</h1>
+          <p class="subtitle">Stream files virtually. Keep active build dependencies local to prevent network latency.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Unified 9-Folder Cloud Architecture</h3>
+              <span class="subtext">Provisioned inside G:\My Drive\</span>
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-init-cloud-folders">Initialize All 9 Folders</button>
+          </div>
+          <div class="cloud-folders-grid" id="cloud-folders-container"></div>
+        </div>
+      </section>
+
+      <!-- TAB 4: Active Workspaces -->
+      <section id="tab-projects" class="tab-panel">
+        <div class="section-header">
+          <h1>Active Workspaces & GitHub Repositories</h1>
+          <p class="subtitle">High-speed execution workspaces in D:\CloudDesk\Workspace and GitHub repositories.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Discovered Local Projects</h3>
+            <button class="btn btn-secondary btn-sm" id="btn-open-workspace-folder">Open Workspace (D:)</button>
+          </div>
+          <div class="projects-grid" id="local-projects-container">
+            <p class="empty-state">Discovering projects...</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 18px;">
+          <div class="card-header">
+            <h3>GitHub Cloud Repositories</h3>
+            <div class="gh-account-badge" id="gh-badge">Authenticated: aayushbhatta230-ux</div>
+          </div>
+          <div class="repos-grid" id="github-repos-container"></div>
+        </div>
+      </section>
+
+      <!-- TAB 5: Cache & Model Manager -->
+      <section id="tab-cache" class="tab-panel">
+        <div class="section-header">
+          <h1>Intelligent Cache & AI Model Manager</h1>
+          <p class="subtitle">Monitors D:\CloudDesk\ModelCache and Dependencies. Cold models stay in Google Drive until needed.</p>
+        </div>
+
+        <div class="two-column-grid">
+          <!-- Cache Limits & Pressure -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Local SSD Cache Limits</h3>
+              <span class="subtext">Configurable capacity thresholds</span>
+            </div>
+            <div id="cache-meters-container"></div>
+          </div>
+
+          <!-- Active Cached Models -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Locally Cached AI Models</h3>
+              <span class="subtext">Active in D:\CloudDesk\ModelCache</span>
+            </div>
+            <div id="cached-models-list"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 18px;">
+          <div class="card-header">
+            <h3>Cloud-Stored AI Models (Google Drive)</h3>
+            <span class="subtext">G:\My Drive\AI_Models</span>
+          </div>
+          <div id="cloud-models-list"></div>
+        </div>
+      </section>
+
+      <!-- TAB 6: Cloud Compute (Colab) -->
+      <section id="tab-cloud" class="tab-panel">
+        <div class="section-header">
+          <h1>Cloud Computing & Remote Acceleration</h1>
+          <p class="subtitle">Free tier Google Colab GPU & GitHub Codespaces for workloads exceeding local 8 GB RAM.</p>
+        </div>
+
+        <div class="compute-cards-grid">
+          <div class="card compute-card">
+            <div class="compute-header">
+              <div class="badge green">Free GPU (T4/L4)</div>
+              <h3>Google Colab Accelerator</h3>
+            </div>
+            <p>Directly mounts your Google Drive datasets and models without local downloads.</p>
+            <div class="compute-features">
+              <span>✓ Mounts /content/drive/MyDrive/Datasets</span>
+              <span>✓ Mounts /content/drive/MyDrive/AI_Models</span>
+              <span>✓ Zero local laptop RAM load</span>
+            </div>
+            <div class="compute-actions">
+              <button class="btn btn-primary" id="btn-generate-colab">Generate Starter Notebook</button>
+              <button class="btn btn-secondary" id="btn-open-colab-web">Open Colab</button>
+            </div>
+          </div>
+
+          <div class="card compute-card">
+            <div class="compute-header">
+              <div class="badge blue">60 Hours Free / Month</div>
+              <h3>GitHub Codespaces</h3>
+            </div>
+            <p>Full cloud containerized Linux environments for Docker & heavy Node stacks.</p>
+            <div class="compute-features">
+              <span>✓ Zero local disk consumption</span>
+              <span>✓ Pre-authenticated via GitHub CLI</span>
+              <span>✓ Remote VS Code connection</span>
+            </div>
+            <div class="compute-actions">
+              <button class="btn btn-secondary" id="btn-open-codespaces">Manage Codespaces</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: Backups & Archives -->
+      <section id="tab-backups" class="tab-panel">
+        <div class="section-header">
+          <h1>Project Backup & Cloud Archive Engine</h1>
+          <p class="subtitle">Clean, verified source archives with SHA256 integrity checks, stored on Google Drive.</p>
+        </div>
+
+        <div class="two-column-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3>Create Verified Project Backup</h3>
+            </div>
+            <form id="backup-form">
+              <div class="form-group">
+                <label>Project Path:</label>
+                <input type="text" id="backup-project-path" class="input-field" placeholder="e.g. D:\CloudDesk\Workspace\my-app" required>
+              </div>
+              <div class="form-group">
+                <label>Destination:</label>
+                <select id="backup-dest-type" class="input-field">
+                  <option value="cloud">Google Drive (G:\My Drive\Backups\Projects) [Recommended]</option>
+                  <option value="local_d">Local Recovery (D:\CloudDesk\Recovery\Backups)</option>
+                </select>
+              </div>
+              <div class="exclusion-notes">
+                <strong>Strict Security Guardrails Active:</strong>
+                <ul>
+                  <li>Excluded Secrets: <code>.env</code>, <code>.env.*</code>, <code>*.pem</code>, <code>*.key</code>, <code>id_rsa</code>, <code>credentials.json</code></li>
+                  <li>Excluded Dependencies: <code>node_modules/</code>, <code>.venv/</code>, <code>dist/</code>, <code>build/</code></li>
+                </ul>
+              </div>
+              <button type="submit" class="btn btn-primary" id="btn-start-backup">Create Clean Backup</button>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Cloud Project Archives & Backups</h3>
+              <button class="btn btn-secondary btn-sm" id="btn-refresh-backups">Refresh</button>
+            </div>
+            <div id="backups-list" class="backups-container">
+              <p class="empty-state">Loading archives...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 8: Security Vault -->
+      <section id="tab-vault" class="tab-panel">
+        <div class="section-header">
+          <h1>Security & Windows Credential Vault</h1>
+          <p class="subtitle">Native Windows Credential Manager (Win32 Cred API). Zero plain-text tokens.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Registered API Keys</h3>
+            <span class="subtext">Encrypted by Windows Credential Manager</span>
+          </div>
+          <div id="credentials-list" class="credentials-container"></div>
+        </div>
+
+        <div class="card" style="margin-top: 18px;">
+          <div class="card-header">
+            <h3>Store New API Key</h3>
+          </div>
+          <form id="cred-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Service / Key Name:</label>
+                <select id="cred-key-name" class="input-field">
+                  <option value="GEMINI_API_KEY">Google Gemini API Key</option>
+                  <option value="OPENAI_API_KEY">OpenAI API Key</option>
+                  <option value="HF_TOKEN">Hugging Face Token</option>
+                  <option value="GITHUB_TOKEN">GitHub Personal Access Token</option>
+                </select>
+              </div>
+              <div class="form-group flex-2">
+                <label>Secret Value (Protected Local Input):</label>
+                <input type="password" id="cred-secret-val" class="input-field" placeholder="Enter secret (never logged or transmitted)" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Save to Windows Credential Manager</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
