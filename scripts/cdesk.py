@@ -98,7 +98,7 @@ def main(argv=None) -> int:
     sp.add_argument("--days", type=float)
     sp = sub.add_parser("ai")
     sp.add_argument("prompt")
-    sp.add_argument("--model", default="gemini-3.5-flash-lite")
+    sp.add_argument("--model", default="auto")  # -> ai_gateway default_model
     args = ap.parse_args(argv)
 
     try:

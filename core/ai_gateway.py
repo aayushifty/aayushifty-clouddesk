@@ -31,7 +31,7 @@ GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai"
 OLLAMA_BASE = os.environ.get("OLLAMA_OPENAI_BASE", "http://127.0.0.1:11434/v1")
 
 DEFAULTS = {
-    "default_model": "gemini-2.5-flash",
+    "default_model": "gemini-3.5-flash-lite",
     "local_fallback": True,
     "local_model": "qwen3:4b-instruct",
     "timeout_seconds": 300,
@@ -100,7 +100,15 @@ def chat(body: Dict[str, Any]) -> Tuple[str, Any]:
         try:
             if not key:
                 raise GatewayError(401, b'{"error":{"message":"GEMINI_API_KEY is not set in the CloudDesk vault"}}')
-            return "gemini", _open(f"{GEMINI_BASE}/chat/completions", payload, key, timeout)
+            try:
+                return "gemini", _open(f"{GEMINI_BASE}/chat/completions", payload, key, timeout)
+            except GatewayError as e:
+                # 404 = model retired or renamed: retry once on a live Flash model
+                alt = pick_live_model(exclude=model) if e.status == 404 else None
+                if not alt:
+                    raise
+                payload["model"] = alt
+                return "gemini", _open(f"{GEMINI_BASE}/chat/completions", payload, key, timeout)
         except (GatewayError, urllib.error.URLError, TimeoutError, OSError) as e:
             retryable = not isinstance(e, GatewayError) or e.status in (401, 403, 408, 429, 500, 502, 503, 504)
             if not (cfg["local_fallback"] and retryable):
@@ -111,6 +119,18 @@ def chat(body: Dict[str, Any]) -> Tuple[str, Any]:
             except (urllib.error.URLError, OSError):
                 raise e from None
     return "local", _open(f"{OLLAMA_BASE}/chat/completions", payload, None, timeout)
+
+
+def pick_live_model(exclude: str = "") -> Optional[str]:
+    """Best available Gemini chat model: prefer flash-lite, then flash, then anything."""
+    ids = [m["id"] for m in list_models(refresh=True)["data"]
+           if m["id"].startswith("gemini") and m["id"] != exclude
+           and not any(x in m["id"] for x in ("embedding", "image", "tts", "audio", "live"))]
+    for want in ("flash-lite", "flash", ""):
+        hits = sorted((i for i in ids if want in i), reverse=True)  # highest version first (3.5 > 2.5)
+        if hits:
+            return hits[0]
+    return None
 
 
 def stream_body(resp, chunk: int = 4096) -> Iterator[bytes]:

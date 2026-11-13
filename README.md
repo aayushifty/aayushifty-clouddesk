@@ -25,7 +25,7 @@ project go to Google Drive's Trash (recoverable for 30 days).
 ```
 OPENAI_BASE_URL=http://127.0.0.1:8765/v1
 OPENAI_API_KEY=clouddesk          # dummy - the real Gemini key stays in Windows Credential Manager
-model=auto                        # -> ai_gateway.default_model (gemini-2.5-flash)
+model=auto                        # -> ai_gateway.default_model (gemini-3.5-flash-lite)
 ```
 
 Requests run on Gemini, so they use 0 MB of laptop RAM instead of 2–4 GB for an Ollama

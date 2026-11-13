@@ -50,7 +50,7 @@ DEFAULT_CONFIG = {
     "strict_security_exclusions": True,
     "auto_park_days": 7,
     "ai_gateway": {
-        "default_model": "gemini-2.5-flash",
+        "default_model": "gemini-3.5-flash-lite",
         "local_fallback": True,
         "local_model": "qwen3:4b-instruct"
     }

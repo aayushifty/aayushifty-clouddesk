@@ -197,7 +197,7 @@ def _server(label, model_id, fail=False):
 
 @pytest.fixture
 def gw(monkeypatch):
-    gem, gem_url = _server("gemini", "models/gemini-2.5-flash")
+    gem, gem_url = _server("gemini", "models/gemini-3.5-flash-lite")
     oll, oll_url = _server("ollama", "qwen3:4b-instruct")
     monkeypatch.setattr(ai_gateway, "GEMINI_BASE", gem_url)
     monkeypatch.setattr(ai_gateway, "OLLAMA_BASE", oll_url)
@@ -212,7 +212,7 @@ def gw(monkeypatch):
 
 def test_route_rules():
     assert ai_gateway.route("auto")[0] == "gemini"
-    assert ai_gateway.route("gpt-4o") == ("gemini", "gemini-2.5-flash")   # agents with hard-coded OpenAI names
+    assert ai_gateway.route("gpt-4o") == ("gemini", "gemini-3.5-flash-lite")   # agents with hard-coded OpenAI names
     assert ai_gateway.route("gemini-2.5-pro") == ("gemini", "gemini-2.5-pro")
     assert ai_gateway.route("local:llama3.2") == ("local", "llama3.2")
 
@@ -223,7 +223,7 @@ def test_chat_goes_to_gemini_with_vault_key(gw):
     assert r.status_code == 200 and r.headers["x-clouddesk-backend"] == "gemini"
     assert r.json()["choices"][0]["message"]["content"] == "from gemini"
     auth, body = gw.gem.seen[0]
-    assert auth == "Bearer test-key" and body["model"] == "gemini-2.5-flash"
+    assert auth == "Bearer test-key" and body["model"] == "gemini-3.5-flash-lite"
 
 
 def test_falls_back_to_local_ollama_when_cloud_down(gw):
@@ -250,7 +250,7 @@ def test_websites_cannot_spend_your_key(gw):
 def test_models_and_status(gw):
     client = TestClient(server.app, base_url="http://127.0.0.1:8765")
     ids = [m["id"] for m in client.get("/v1/models").json()["data"]]
-    assert ids == ["auto", "gemini-2.5-flash", "local:qwen3:4b-instruct"]
+    assert ids == ["auto", "gemini-3.5-flash-lite", "local:qwen3:4b-instruct"]
     s = client.get("/api/ai/status?refresh=true").json()
     assert s["gemini_reachable"] and s["ollama_running"] and s["gemini_key_configured"]
 
@@ -266,3 +266,17 @@ def test_cdesk_cli_open_park_by_path(env, capsys):
     assert cdesk.main(["park-path", str(env.local / "site")]) == 0
     assert not (env.local / "site").exists()
     assert cdesk.main(["park-path", str(env.tmp)]) == 1                                   # outside both roots
+
+
+def test_retired_model_self_heals(gw, monkeypatch):
+    real = ai_gateway._open
+
+    def fake_open(url, payload, key, timeout):
+        if payload and payload.get("model") == "gemini-old":
+            raise ai_gateway.GatewayError(404, b'{"error":{"message":"model not found"}}')
+        return real(url, payload, key, timeout)
+
+    monkeypatch.setattr(ai_gateway, "_open", fake_open)
+    backend, resp = ai_gateway.chat({"model": "gemini-old", "messages": []})
+    with resp:
+        assert backend == "gemini" and json.loads(resp.read())["model"] == "gemini-3.5-flash-lite"
